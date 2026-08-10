@@ -1,79 +1,53 @@
-import { eq } from "drizzle-orm";
+import { Armchair, Shuffle, Trophy } from "lucide-react";
 import Link from "next/link";
 import { auth } from "@/auth";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { db } from "@/db";
-import { clubMemberships, clubs } from "@/db/schema";
+import { CreateTeamMatchDialog } from "@/components/create-team-match-dialog";
+import { getOrCreatePlayerForUser } from "@/db/players";
+
+const playMenuBeforeTeamMatches = [
+  { label: "Casual Game", icon: Armchair, href: "/coming-soon?feature=Casual%20Game" },
+  { label: "Tournaments", icon: Trophy, href: "/coming-soon?feature=Tournaments" },
+];
+const playMenuAfterTeamMatches = [
+  { label: "Practice", icon: Shuffle, href: "/coming-soon?feature=Practice" },
+];
 
 export default async function DashboardPage() {
   const session = await auth();
   const userId = session!.user!.id!;
-
-  const myClubs = await db
-    .select({
-      id: clubs.id,
-      name: clubs.name,
-      slug: clubs.slug,
-      role: clubMemberships.role,
-      createdAt: clubs.createdAt,
-    })
-    .from(clubMemberships)
-    .innerJoin(clubs, eq(clubMemberships.clubId, clubs.id))
-    .where(eq(clubMemberships.userId, userId));
+  const email = session!.user!.email!;
+  await getOrCreatePlayerForUser(userId, email, email.split("@")[0]);
 
   return (
-    <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">My Clubs</h1>
-        <Button nativeButton={false} render={<Link href="/clubs/new">New Club</Link>} />
-      </div>
+    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
+      <div className="mb-6 rounded-2xl bg-indigo-50/60 p-3">
+        <div className="mb-3 rounded-xl bg-indigo-700 px-6 py-3 text-center text-lg font-semibold text-white shadow-sm">
+          Play or Watch Bridge
+        </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Club</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead className="text-right">Created</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {myClubs.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
-                  You haven&apos;t joined or created a club yet.
-                </TableCell>
-              </TableRow>
-            ) : (
-              myClubs.map((club) => (
-                <TableRow key={club.id}>
-                  <TableCell className="font-medium">
-                    <Link href={`/clubs/${club.slug}`} className="hover:underline">
-                      {club.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={club.role === "ORGANIZER" ? "default" : "secondary"}>
-                      {club.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {club.createdAt.toLocaleDateString()}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {playMenuBeforeTeamMatches.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className="flex items-center gap-3 rounded-2xl bg-card px-5 py-4 shadow-sm transition hover:shadow-md"
+            >
+              <item.icon className="size-5 shrink-0 text-indigo-700" />
+              <span className="font-medium text-indigo-950">{item.label}</span>
+            </Link>
+          ))}
+          <CreateTeamMatchDialog />
+          {playMenuAfterTeamMatches.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className="flex items-center gap-3 rounded-2xl bg-card px-5 py-4 shadow-sm transition hover:shadow-md"
+            >
+              <item.icon className="size-5 shrink-0 text-indigo-700" />
+              <span className="font-medium text-indigo-950">{item.label}</span>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );

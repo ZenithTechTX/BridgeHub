@@ -117,6 +117,36 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+@keyframes card-play {
+  from {
+    opacity: 0;
+    transform: scale(0.4) translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-card-play {
+  animation: card-play 0.25s ease-out;
+}
+
+/* Played cards slide in from whichever seat played them (see --from-x/-y,
+   set inline per card) and land in the fanned center stack. */
+@keyframes card-slide {
+  from {
+    opacity: 0;
+    transform: translate(var(--from-x, 0), var(--from-y, 0)) scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+.animate-card-slide {
+  animation: card-slide 0.35s ease-out;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

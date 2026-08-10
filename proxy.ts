@@ -1,14 +1,10 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { type NextRequest } from "next/server";
+import { updateSession } from "@/lib/supabase/middleware";
 
-export default auth((req) => {
-  if (!req.auth) {
-    const signInUrl = new URL("/signin", req.nextUrl.origin);
-    signInUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
-    return NextResponse.redirect(signInUrl);
-  }
-});
+export default async function proxy(request: NextRequest) {
+  return await updateSession(request);
+}
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/clubs/new"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

@@ -1,8 +1,9 @@
+import { redirect } from "next/navigation";
+import { auth, sendMagicLink as sendMagicLinkEmail } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signIn } from "@/auth";
 
 export default async function SignInPage({
   searchParams,
@@ -11,13 +12,15 @@ export default async function SignInPage({
 }) {
   const { callbackUrl, sent } = await searchParams;
 
+  const session = await auth();
+  if (session) {
+    redirect(callbackUrl ?? "/dashboard");
+  }
+
   async function sendMagicLink(formData: FormData) {
     "use server";
     const email = formData.get("email") as string;
-    await signIn("email", {
-      email,
-      redirect: false,
-    });
+    await sendMagicLinkEmail({ email, redirectTo: callbackUrl ?? "/dashboard" });
     const { redirect } = await import("next/navigation");
     redirect(`/signin?sent=1${callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`);
   }
