@@ -1,0 +1,1 @@
+ALTER TABLE "event_session" ADD COLUMN "currentBoardNumber" integer DEFAULT 1 NOT NULL;
