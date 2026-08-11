@@ -50,6 +50,9 @@ Dashboard → **Settings → Variables and Secrets**:
 | `RESEND_API_KEY` | **Secret** | from `.env.local` (`re_...`) |
 | `EMAIL_FROM` | Text | `BridgeHub <onboarding@bridgehub.cc>` (or your verified Resend sending domain) |
 | `NEXT_PUBLIC_APP_URL` | Text | the deployed URL for that environment — differs between Production and each Preview branch, since magic links embed this |
+| `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` | **Secret** | same value as `DATABASE_URL` in `.env.local` |
+
+That last one is easy to miss: `opennextjs-cloudflare`'s `deploy` command uses Miniflare's platform-proxy internally to resolve bindings during the build itself, and Miniflare can never reach the real Hyperdrive service (it only exists on Cloudflare's actual edge network) — so it needs a real, reachable Postgres connection string for this step even on a genuine production deploy, not just for local dev.
 
 Not needed: `DATABASE_URL` / `DIRECT_URL` (Workers get the connection through the Hyperdrive binding instead) and `AUTH_SECRET` (leftover from the old NextAuth setup — confirmed unused anywhere in the current codebase).
 
