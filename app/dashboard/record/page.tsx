@@ -1,4 +1,5 @@
 import { desc, eq, inArray } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { db } from "@/db";
 import { getOrCreatePlayerForUser } from "@/db/players";
@@ -7,8 +8,9 @@ import { auth } from "@/auth";
 
 export default async function MyRecordPage() {
   const session = await auth();
-  const userId = session!.user!.id!;
-  const email = session!.user!.email!;
+  if (!session?.user?.id || !session.user.email) redirect("/signin");
+  const userId = session.user.id;
+  const email = session.user.email;
   const player = await getOrCreatePlayerForUser(userId, email, email.split("@")[0]);
 
   const myPairRows = await db

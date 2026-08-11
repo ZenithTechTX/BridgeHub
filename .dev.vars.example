@@ -1,0 +1,11 @@
+NEXT_PUBLIC_SUPABASE_URL=""
+NEXT_PUBLIC_SUPABASE_ANON_KEY=""
+SUPABASE_SERVICE_ROLE_KEY=""
+RESEND_API_KEY=""
+EMAIL_FROM="BridgeHub <onboarding@yourdomain.com>"
+NEXT_PUBLIC_APP_URL="http://localhost:8788"
+
+# Used by initOpenNextCloudflareForDev()/wrangler dev to emulate the
+# Hyperdrive binding locally — point it at a real Postgres connection
+# string (the same one DATABASE_URL uses is fine).
+CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=""

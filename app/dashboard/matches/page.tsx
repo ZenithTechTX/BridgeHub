@@ -1,11 +1,20 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { BridgeTable } from "@/components/bridge-table";
 import { getTeamMatchRooms, listMyTeamMatchSessions } from "@/db/matches";
+import { deleteAbandonedSessions } from "@/db/presence";
 
 export default async function TeamMatchPage() {
   const session = await auth();
-  const userId = session!.user!.id!;
+  if (!session?.user?.id) redirect("/signin");
+  const userId = session.user.id;
+
+  // Opportunistic cleanup — there's no persistent background worker to run
+  // this on a schedule, so it piggybacks on whoever next loads the matches
+  // list. Cheap and safe to run on every load: it only ever touches tables
+  // that have been empty (no player or kibitzer) for several minutes.
+  await deleteAbandonedSessions();
 
   const mySessions = await listMyTeamMatchSessions(userId);
   const matchSummaries = await Promise.all(

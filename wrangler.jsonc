@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bridgehub",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Set the real Hyperdrive resource ID from the Cloudflare dashboard here
+  // (Workers & Pages > this project > Settings > Bindings) — see
+  // CLOUDFLARE_DEPLOY.md for how to create it. Left blank on purpose: a
+  // fake ID would fail in a more confusing way than a missing one.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": ""
+    }
+  ]
+}

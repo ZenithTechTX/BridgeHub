@@ -1,4 +1,4 @@
-import { createTransport } from "nodemailer";
+import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -28,9 +28,9 @@ export async function signOut({ redirectTo }: { redirectTo: string }) {
 }
 
 // Generates a magic-link action link via the admin API (so we control the
-// email, not Supabase's default templates), then sends it through the same
-// nodemailer transport/branding as before — including the "log to console
-// if EMAIL_SERVER unset" dev-mode fallback.
+// email, not Supabase's default templates), then sends it through Resend's
+// HTTP API — not SMTP, which Cloudflare Workers can't reach — including the
+// "log to console if RESEND_API_KEY unset" dev-mode fallback.
 export async function sendMagicLink({ email, redirectTo }: { email: string; redirectTo: string }) {
   const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.generateLink({
@@ -50,17 +50,18 @@ export async function sendMagicLink({ email, redirectTo }: { email: string; redi
   // generating the link also creates the user.
   const url = `${APP_URL}/auth/confirm?token_hash=${data.properties.hashed_token}&type=${data.properties.verification_type}&next=${encodeURIComponent(redirectTo)}`;
 
-  if (!process.env.EMAIL_SERVER) {
+  if (!process.env.RESEND_API_KEY) {
     console.log(`\n[dev] Magic sign-in link for ${email}:\n${url}\n`);
     return;
   }
 
-  const transport = createTransport(process.env.EMAIL_SERVER);
-  await transport.sendMail({
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const { error: sendError } = await resend.emails.send({
     to: email,
     from: process.env.EMAIL_FROM ?? "BridgeHub <onboarding@bridgehub.dev>",
     subject: "Sign in to BridgeHub",
     text: `Sign in to BridgeHub: ${url}`,
     html: `<p><a href="${url}">Sign in to BridgeHub</a></p>`,
   });
+  if (sendError) throw new Error(sendError.message);
 }

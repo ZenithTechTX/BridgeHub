@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AuctionGrid } from "@/components/auction-grid";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -211,8 +211,9 @@ export default async function MatchResultsPage({
   if (!summary) notFound();
   const { session: matchSession, rooms } = summary;
 
-  const userId = session!.user!.id!;
-  const email = session!.user!.email!;
+  if (!session?.user?.id || !session.user.email) redirect("/signin");
+  const userId = session.user.id;
+  const email = session.user.email;
   const me = await getOrCreatePlayerForUser(userId, email, email.split("@")[0]);
   await trackViewer(sessionId, me.playerId);
 

@@ -1,11 +1,13 @@
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getOrCreatePlayerForUser } from "@/db/players";
 import { AccountForm } from "./account-form";
 
 export default async function AccountPage() {
   const session = await auth();
-  const userId = session!.user!.id!;
-  const email = session!.user!.email!;
+  if (!session?.user?.id || !session.user.email) redirect("/signin");
+  const userId = session.user.id;
+  const email = session.user.email;
   const player = await getOrCreatePlayerForUser(userId, email, email.split("@")[0]);
 
   return (
