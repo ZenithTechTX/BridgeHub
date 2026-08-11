@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bridgehub",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Not a secret — this is just a reference handle to the Hyperdrive
+  // resource; the actual DB credentials live only inside Cloudflare's
+  // Hyperdrive service, never exposed via this ID.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "7390105a5f22437886c40e5ca7cbd702"
+    }
+  ]
+}

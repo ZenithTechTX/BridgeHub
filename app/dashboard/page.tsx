@@ -1,5 +1,6 @@
 import { Armchair, Shuffle, Trophy } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { CreateTeamMatchDialog } from "@/components/create-team-match-dialog";
 import { getOrCreatePlayerForUser } from "@/db/players";
@@ -14,8 +15,9 @@ const playMenuAfterTeamMatches = [
 
 export default async function DashboardPage() {
   const session = await auth();
-  const userId = session!.user!.id!;
-  const email = session!.user!.email!;
+  if (!session?.user?.id || !session.user.email) redirect("/signin");
+  const userId = session.user.id;
+  const email = session.user.email;
   await getOrCreatePlayerForUser(userId, email, email.split("@")[0]);
 
   return (
