@@ -8,14 +8,13 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
-  // Set the real Hyperdrive resource ID from the Cloudflare dashboard here
-  // (Workers & Pages > this project > Settings > Bindings) — see
-  // CLOUDFLARE_DEPLOY.md for how to create it. Left blank on purpose: a
-  // fake ID would fail in a more confusing way than a missing one.
+  // Not a secret — this is just a reference handle to the Hyperdrive
+  // resource; the actual DB credentials live only inside Cloudflare's
+  // Hyperdrive service, never exposed via this ID.
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": ""
+      "id": "7390105a5f22437886c40e5ca7cbd702"
     }
   ]
 }
