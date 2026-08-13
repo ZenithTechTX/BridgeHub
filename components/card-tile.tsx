@@ -33,7 +33,8 @@ export function CardTile({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-1 rounded-lg border border-black/10 bg-white shadow-md",
+        "flex flex-col items-center justify-center gap-1 rounded-lg border-2 bg-white shadow-md",
+        isRed ? "border-red-500" : "border-slate-800",
         vertical ? "h-[78px] w-[108px] flex-row gap-3" : "h-[108px] w-[78px]",
         dim && "opacity-40"
       )}

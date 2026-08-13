@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/db";
 import {
   biddingSequence,
@@ -102,6 +102,19 @@ export async function listMyTeamMatchSessions(userId: string) {
     .select()
     .from(sessions)
     .where(and(eq(sessions.directorId, userId), eq(sessions.sessionType, "swiss")))
+    .orderBy(desc(sessions.createdAt));
+}
+
+// Every team-match table currently open across the whole app, regardless of
+// who's directing it — used by the "All Tables" listing, unlike
+// listMyTeamMatchSessions above which is scoped to tables you created.
+// Excludes completed matches; those already have their own record/replay
+// pages and aren't "playing" anymore.
+export async function listAllActiveTeamMatchSessions() {
+  return db
+    .select()
+    .from(sessions)
+    .where(and(eq(sessions.sessionType, "swiss"), ne(sessions.status, "completed")))
     .orderBy(desc(sessions.createdAt));
 }
 

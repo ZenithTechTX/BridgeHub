@@ -103,7 +103,7 @@ export function BoardReplay({
           )}
 
           {!cardPlayStarted ? (
-            <AuctionGrid dealer={dealer} calls={revealedCalls} />
+            <AuctionGrid dealer={dealer} calls={revealedCalls} vulnerability={vulnerability} />
           ) : passedOut ? (
             <p className="text-center text-sm font-semibold">Passed out</p>
           ) : !done ? (

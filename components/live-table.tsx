@@ -35,6 +35,14 @@ function DirectionBadge({ direction }: { direction: Direction }) {
   );
 }
 
+// Seats left blank at match creation get an auto-generated placeholder
+// name like "Team1 North 1786507118880" (see createTeamMatch) — there's no
+// dedicated "was this reserved" column, so a still-claimable seat with a
+// name that DOESN'T match that pattern means the director typed a real
+// name in for it, and it's worth showing who it's reserved for rather than
+// a generic "Sit!".
+const AUTO_GENERATED_NAME = /^Team[12] (North|East|South|West) \d+$/;
+
 function SeatBar({
   name,
   isViewer,
@@ -46,6 +54,7 @@ function SeatBar({
   isClaimable: boolean;
   onClaim?: (formData: FormData) => Promise<void>;
 }) {
+  const label = isClaimable ? (AUTO_GENERATED_NAME.test(name) ? "Sit!" : `Reserved for: ${name}`) : name;
   const body = (
     <div
       className={cn(
@@ -54,8 +63,8 @@ function SeatBar({
         isClaimable && "cursor-pointer hover:brightness-95"
       )}
     >
-      <span className="max-w-52 truncate" title={isClaimable ? "Sit!" : name}>
-        {isClaimable ? "Sit!" : name}
+      <span className="max-w-52 truncate" title={label}>
+        {label}
       </span>
     </div>
   );
@@ -72,7 +81,7 @@ function VulBadge({ label, vulnerable }: { label: string; vulnerable: boolean })
   return (
     <span
       className={cn(
-        "rounded px-1.5 py-0.5 text-xs font-bold",
+        "rounded px-1.5 py-0.5 text-sm font-bold",
         vulnerable ? "bg-red-600 text-white" : "bg-white text-slate-900"
       )}
     >
@@ -170,9 +179,15 @@ export function LiveTable({
   const hand = (direction: Direction, vertical: boolean) => {
     const revealed = revealedFor(direction);
     const isPlayable = playable?.direction === direction;
+    // flex-nowrap is deliberate: a wrapping N/S row would shrink its own
+    // reported width whenever the page is squeezed (sidebar/chat competing
+    // for space), which — combined with the felt sizing to its content —
+    // caused the whole table to spiral down in size and eventually clip
+    // hands entirely. Horizontal scroll on the felt is a better failure
+    // mode than that.
     const containerClass = vertical
       ? "flex flex-col items-start"
-      : "flex flex-wrap justify-center gap-px";
+      : "flex flex-nowrap justify-center gap-px";
     // E/W cards render portrait (like N/S) rather than landscape — only the
     // hand's layout (a side column vs. a horizontal fan) differs by seat,
     // not the card shape itself.
@@ -260,7 +275,7 @@ export function LiveTable({
   return (
     <div className="overflow-hidden rounded-xl shadow-sm">
       <div className="flex items-center justify-between bg-slate-900 px-4 py-3 text-white">
-        <span className="text-sm text-white/70">
+        <span className="text-base text-white/70">
           Board {boardNumber} of {boardsPerRound}
         </span>
         <span className="text-base font-semibold">{room.label}</span>
@@ -271,8 +286,8 @@ export function LiveTable({
         </div>
       </div>
 
-      <div className="bg-emerald-800 px-20 py-4">
-        <div className="mx-auto flex max-w-[2300px] flex-col items-center gap-3">
+      <div className="overflow-x-auto bg-emerald-800 px-10 py-4">
+        <div className="mx-auto flex w-fit flex-col items-center gap-3">
           <div className="flex flex-col items-center gap-2">
             <DirectionBadge direction={top} />
             {hand(top, false)}
@@ -286,7 +301,7 @@ export function LiveTable({
               {seatBarFor(left)}
             </div>
 
-            <div className="flex size-[600px] shrink-0 flex-col items-center justify-start overflow-auto rounded-lg bg-[#e8e4d8] p-6 shadow-inner">
+            <div className="flex h-[480px] w-[480px] shrink-0 flex-col items-center justify-start overflow-auto rounded-lg bg-[#e8e4d8] p-6 shadow-inner">
               {children}
             </div>
 

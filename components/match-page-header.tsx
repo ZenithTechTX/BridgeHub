@@ -28,7 +28,7 @@ export function MatchPageHeader({
       {recordHref ? (
         <Link
           href={recordHref}
-          className="rounded-md bg-white/10 px-2 py-1.5 text-sm font-medium hover:bg-white/20"
+          className="rounded-md bg-white/10 px-2 py-1.5 text-base font-medium hover:bg-white/20"
         >
           Record
         </Link>

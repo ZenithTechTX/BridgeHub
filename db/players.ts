@@ -1,6 +1,14 @@
-import { eq, ilike } from "drizzle-orm";
+import { and, eq, gt, ilike, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { players } from "@/db/schema";
+import { type SkillLevel } from "@/lib/skill-levels";
+
+export { SKILL_LEVELS, type SkillLevel } from "@/lib/skill-levels";
+
+// Site-wide "who's online" — a player counts as online if seen within this
+// window. Separate from db/presence.ts's session_viewers, which tracks
+// presence within one specific match rather than the app as a whole.
+const ONLINE_WINDOW_MS = 60_000;
 
 // The new `players` table has no username/displayName split — just `name`.
 // It's also NOT NULL with no natural "not yet onboarded" marker, so a first
@@ -37,4 +45,34 @@ export async function resolveOrCreatePlayerByName(name: string) {
 
   const [player] = await db.insert(players).values({ name }).returning();
   return player;
+}
+
+export async function isHandleTaken(handle: string, excludePlayerId?: string) {
+  const match = await db.query.players.findFirst({
+    where: excludePlayerId
+      ? and(ilike(players.handle, handle), ne(players.playerId, excludePlayerId))
+      : ilike(players.handle, handle),
+  });
+  return !!match;
+}
+
+export async function completeOnboarding(
+  playerId: string,
+  { name, handle, skillLevel }: { name: string; handle: string; skillLevel: SkillLevel }
+) {
+  await db.update(players).set({ name, handle, skillLevel }).where(eq(players.playerId, playerId));
+}
+
+export async function touchPlayerPresence(playerId: string) {
+  await db.update(players).set({ lastSeenAt: new Date() }).where(eq(players.playerId, playerId));
+}
+
+export async function getOnlinePlayers(excludePlayerId?: string) {
+  const since = new Date(Date.now() - ONLINE_WINDOW_MS);
+  return db.query.players.findMany({
+    where: excludePlayerId
+      ? and(gt(players.lastSeenAt, since), ne(players.playerId, excludePlayerId))
+      : gt(players.lastSeenAt, since),
+    orderBy: (p, { asc }) => asc(p.name),
+  });
 }

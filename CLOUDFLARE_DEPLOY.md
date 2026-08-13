@@ -8,7 +8,7 @@ Both `main` (production) and `test` (a preview branch) deploy from **one** Worke
 
 - **Database**: `db/index.ts` used a raw TCP Postgres connection (`postgres.js`), which Workers can't make directly. It now goes through a **Hyperdrive** binding instead, falling back to `DATABASE_URL` outside of Workers (local dev, scratch scripts).
 - **Email**: magic-link sign-in emails used SMTP (`nodemailer`), also TCP-only. Switched to **Resend's HTTP API** — turns out your existing `EMAIL_SERVER` value was already a Resend SMTP credential, so no new account was needed, just a different way of calling the same provider.
-- **Middleware**: Next.js 16's `proxy.ts` always runs on the Node.js runtime, which Cloudflare Workers can't execute yet. The dashboard sign-in guard moved from `proxy.ts` into `app/dashboard/layout.tsx`. One real behavior change: the auth cookie used to refresh proactively on every request; now it only refreshes when a Server Action runs. In practice this means a tab left open past the access token's ~1hr TTL may need a manual reload before its next server action/navigation succeeds — not a broken session, just a lazier refresh.
+- **Middleware**: Next.js 16's `proxy.ts` always runs on the Node.js runtime, which Cloudflare Workers can't execute yet. The dashboard sign-in guard moved from `proxy.ts` into `app/dashboard/layout.tsx`. Session refresh (previously middleware's job) now happens via `app/api/auth/refresh/route.ts`, a Route Handler pinged every 10 minutes by `<SessionRefresher/>` (mounted in the dashboard layout) — Route Handlers can write cookies even though Server Component renders can't, so this keeps the auth cookie proactively refreshed the same way middleware used to, without needing the Node.js runtime.
 
 ## One-time setup
 
@@ -40,7 +40,19 @@ Dashboard → your Worker project → **Settings → Bindings** (configure separ
 |---|---|---|
 | Hyperdrive | `HYPERDRIVE` | the resource ID from step 1 (prod one for Production, test one for Preview) |
 
-Dashboard → **Settings → Variables and Secrets**:
+**Two separate places to set variables — they behave differently:**
+
+Dashboard → **Settings → Build** (applies to every build, Production and Preview alike — not scoped per environment, so this is a one-time set-and-forget):
+
+| Name | Type | Value |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Text | from `.env.local` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Text | from `.env.local` |
+| `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` | **Secret** | same value as `DATABASE_URL` in `.env.local` |
+
+The `NEXT_PUBLIC_*` ones need to be here (not just below) because Next.js inlines them into the bundle at build time — setting them only as runtime variables leaves them `undefined` in the compiled output. The Hyperdrive one is needed because `opennextjs-cloudflare`'s `deploy` command uses Miniflare's platform-proxy internally to resolve bindings during the build itself, and Miniflare can never reach the real Hyperdrive service (it only exists on Cloudflare's actual edge network) — so it needs a real, reachable Postgres connection string for this step even on a genuine production deploy, not just local dev.
+
+Dashboard → **Settings → Variables and Secrets** (runtime — **must** be set separately for Production and Preview; this is where a known Cloudflare dashboard bug lives, see below):
 
 | Name | Type | Value |
 |---|---|---|
@@ -50,9 +62,8 @@ Dashboard → **Settings → Variables and Secrets**:
 | `RESEND_API_KEY` | **Secret** | from `.env.local` (`re_...`) |
 | `EMAIL_FROM` | Text | `BridgeHub <onboarding@bridgehub.cc>` (or your verified Resend sending domain) |
 | `NEXT_PUBLIC_APP_URL` | Text | the deployed URL for that environment — differs between Production and each Preview branch, since magic links embed this |
-| `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` | **Secret** | same value as `DATABASE_URL` in `.env.local` |
 
-That last one is easy to miss: `opennextjs-cloudflare`'s `deploy` command uses Miniflare's platform-proxy internally to resolve bindings during the build itself, and Miniflare can never reach the real Hyperdrive service (it only exists on Cloudflare's actual edge network) — so it needs a real, reachable Postgres connection string for this step even on a genuine production deploy, not just for local dev.
+**Known dashboard bug**: you can't add a "Preview" scope to a variable that already exists under "Production" — it either errors as a duplicate name or the Previews checkbox just won't toggle. Workaround: delete the existing entry and re-add it fresh with **both** Production and Preview checked in the same "Add variable" dialog, rather than adding Preview separately afterward.
 
 Not needed: `DATABASE_URL` / `DIRECT_URL` (Workers get the connection through the Hyperdrive binding instead) and `AUTH_SECRET` (leftover from the old NextAuth setup — confirmed unused anywhere in the current codebase).
 
