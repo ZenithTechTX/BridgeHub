@@ -1,7 +1,7 @@
 "use client";
 
 import { UsersRound } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,16 +26,40 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function SeatBox({ team }: { team: "team1" | "team2" }) {
+const SEAT_OPTIONS = [
+  { value: "team1North", label: "Team 1 — North" },
+  { value: "team1East", label: "Team 1 — East" },
+  { value: "team1South", label: "Team 1 — South" },
+  { value: "team1West", label: "Team 1 — West" },
+  { value: "team2North", label: "Team 2 — North" },
+  { value: "team2East", label: "Team 2 — East" },
+  { value: "team2South", label: "Team 2 — South" },
+  { value: "team2West", label: "Team 2 — West" },
+] as const;
+
+function SeatBox({
+  team,
+  mySeat,
+}: {
+  team: "team1" | "team2";
+  mySeat: string;
+}) {
   const fieldName = (seat: string) =>
     `${team}${seat[0].toUpperCase()}${seat.slice(1)}`;
-  const seatInput = (seat: "north" | "east" | "south" | "west", label: string) => (
-    <Input
-      name={fieldName(seat)}
-      placeholder={`${label} — Player name`}
-      className="h-8 border-none bg-gray-300/80 text-sm placeholder:text-gray-700 focus-visible:ring-2"
-    />
-  );
+  const seatInput = (seat: "north" | "east" | "south" | "west", label: string) => {
+    const isMine = fieldName(seat) === mySeat;
+    return isMine ? (
+      <div className="flex h-8 items-center rounded-sm bg-indigo-700 px-2 text-sm font-medium text-white">
+        {label} — You
+      </div>
+    ) : (
+      <Input
+        name={fieldName(seat)}
+        placeholder={`${label} — Player name`}
+        className="h-8 border-none bg-gray-300/80 text-sm placeholder:text-gray-700 focus-visible:ring-2"
+      />
+    );
+  };
   return (
     <div>
       <div className="mb-1 text-sm font-semibold">
@@ -53,6 +77,7 @@ function SeatBox({ team }: { team: "team1" | "team2" }) {
 
 export function CreateTeamMatchDialog() {
   const [state, formAction, pending] = useActionState(createTeamMatch, undefined);
+  const [mySeat, setMySeat] = useState<string>("team1North");
 
   return (
     <Dialog>
@@ -205,13 +230,37 @@ export function CreateTeamMatchDialog() {
               </TabsContent>
 
               <TabsContent value="seats" keepMounted>
-                <Section title="Reserve seats (optional)">
-                  <SeatBox team="team1" />
-                  <SeatBox team="team2" />
+                <Section title="Your seat">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="mySeat" className="text-xs text-muted-foreground">
+                      Sit at
+                    </Label>
+                    <select
+                      id="mySeat"
+                      value={mySeat}
+                      onChange={(e) => setMySeat(e.target.value)}
+                      className="h-8 rounded-md border bg-white px-2 text-sm"
+                    >
+                      {SEAT_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </Section>
+
+                <div className="mt-4">
+                  <Section title="Reserve other seats (optional)">
+                    <SeatBox team="team1" mySeat={mySeat} />
+                    <SeatBox team="team2" mySeat={mySeat} />
+                  </Section>
+                </div>
               </TabsContent>
             </div>
           </Tabs>
+
+          <input type="hidden" name="mySeat" value={mySeat} />
 
           <div className="flex justify-center gap-3 bg-[#b9c8c8] px-4 py-4">
             {state?.error && (

@@ -2,6 +2,12 @@ import { Menu } from "lucide-react";
 import type { Direction, TeamMatchRoom } from "@/db/matches";
 import { cn } from "@/lib/utils";
 
+// Same heuristic as live-table.tsx/bridge-table.tsx: a seat still holding
+// its auto-generated placeholder name (see createTeamMatch) is genuinely
+// unclaimed — show it as an empty seat instead of the raw "Team1 North
+// 1786507118880"-style name.
+const AUTO_GENERATED_NAME = /^Team[12] (North|East|South|West) \d+$/;
+
 function TeamImpsLine({ name, imps }: { name: string; imps: number }) {
   return (
     <div className="flex items-baseline justify-between gap-2">
@@ -70,14 +76,19 @@ export function MatchSidebar({
               {room.label}
             </div>
             <div className="flex flex-col gap-0.5">
-              {room.seats.map((seat) => (
-                <div key={seat.direction} className="flex items-center gap-1.5 text-base">
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-sm bg-slate-800 text-sm font-bold text-white">
-                    {seat.direction}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{seat.name}</span>
-                </div>
-              ))}
+              {room.seats.map((seat) => {
+                const isEmpty = AUTO_GENERATED_NAME.test(seat.name);
+                return (
+                  <div key={seat.direction} className="flex items-center gap-1.5 text-base">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-sm bg-slate-800 text-sm font-bold text-white">
+                      {seat.direction}
+                    </span>
+                    <span className={cn("min-w-0 flex-1 truncate", isEmpty && "text-muted-foreground italic")}>
+                      {isEmpty ? "Empty" : (seat.handle ?? seat.name)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}

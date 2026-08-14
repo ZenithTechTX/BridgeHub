@@ -334,6 +334,7 @@ export default async function MatchResultsPage({
             <MatchSidebar boardNumber={currentBoard.boardNumber} boardsPerRound={matchSession.numBoards ?? 0} dealer={currentBoard.dealer as Direction} rooms={rooms} standing={standing} kibitzers={kibitzers} />
             <div className="flex flex-1 flex-col gap-3 lg:flex-row">
               <div className="flex flex-1 flex-col gap-4">
+                <div className="relative">
                 <LiveTable
                   room={myView.room}
                   boardNumber={currentBoard.boardNumber}
@@ -453,6 +454,19 @@ export default async function MatchResultsPage({
                   )}
                 </LiveTable>
 
+                {myView.inPlay && (
+                  <div className="absolute right-2 bottom-2 z-10">
+                    <TrickTracker
+                      tricksWonNS={myView.tricksWonNS}
+                      tricksWonEW={myView.tricksWonEW}
+                      lastTrick={myView.lastTrick}
+                      targetTricks={(myView.contract as Contract).level + 6}
+                      declarerSide={(myView.contract as Contract).declarer === "N" || (myView.contract as Contract).declarer === "S" ? "NS" : "EW"}
+                    />
+                  </div>
+                )}
+                </div>
+
                 {bothRoomsDone && roomViews[0] && roomViews[1] && <RoomComparisonBanner roomA={roomViews[0]} roomB={roomViews[1]} />}
                 {bothRoomsDone && !isLastBoard && (
                   <p className="text-sm text-muted-foreground">Both rooms are done — moving to the next board.</p>
@@ -465,15 +479,6 @@ export default async function MatchResultsPage({
 
               <div className="flex flex-col gap-3">
                 <ChatHistory messages={messages} />
-                {myView.inPlay && (
-                  <TrickTracker
-                    tricksWonNS={myView.tricksWonNS}
-                    tricksWonEW={myView.tricksWonEW}
-                    lastTrick={myView.lastTrick}
-                    targetTricks={(myView.contract as Contract).level + 6}
-                    declarerSide={(myView.contract as Contract).declarer === "N" || (myView.contract as Contract).declarer === "S" ? "NS" : "EW"}
-                  />
-                )}
               </div>
             </div>
           </div>
@@ -499,6 +504,7 @@ export default async function MatchResultsPage({
                   </a>
                 </div>
 
+                <div className="relative">
                 <LiveTable
                   room={kibitzerView.room}
                   boardNumber={currentBoard.boardNumber}
@@ -518,20 +524,24 @@ export default async function MatchResultsPage({
                   />
                 </LiveTable>
 
+                {kibitzerView.inPlay && (
+                  <div className="absolute right-2 bottom-2 z-10">
+                    <TrickTracker
+                      tricksWonNS={kibitzerView.tricksWonNS}
+                      tricksWonEW={kibitzerView.tricksWonEW}
+                      lastTrick={kibitzerView.lastTrick}
+                      targetTricks={(kibitzerView.contract as Contract).level + 6}
+                      declarerSide={(kibitzerView.contract as Contract).declarer === "N" || (kibitzerView.contract as Contract).declarer === "S" ? "NS" : "EW"}
+                    />
+                  </div>
+                )}
+                </div>
+
                 {bothRoomsDone && roomViews[0] && roomViews[1] && <RoomComparisonBanner roomA={roomViews[0]} roomB={roomViews[1]} />}
               </div>
 
               <div className="flex flex-col gap-3">
                 <ChatHistory messages={messages} />
-                {kibitzerView.inPlay && (
-                  <TrickTracker
-                    tricksWonNS={kibitzerView.tricksWonNS}
-                    tricksWonEW={kibitzerView.tricksWonEW}
-                    lastTrick={kibitzerView.lastTrick}
-                    targetTricks={(kibitzerView.contract as Contract).level + 6}
-                    declarerSide={(kibitzerView.contract as Contract).declarer === "N" || (kibitzerView.contract as Contract).declarer === "S" ? "NS" : "EW"}
-                  />
-                )}
               </div>
             </div>
           </div>

@@ -45,16 +45,19 @@ const AUTO_GENERATED_NAME = /^Team[12] (North|East|South|West) \d+$/;
 
 function SeatBar({
   name,
+  handle,
   isViewer,
   isClaimable,
   onClaim,
 }: {
   name: string;
+  handle: string | null;
   isViewer: boolean;
   isClaimable: boolean;
   onClaim?: (formData: FormData) => Promise<void>;
 }) {
-  const label = isClaimable ? (AUTO_GENERATED_NAME.test(name) ? "Sit!" : `Reserved for: ${name}`) : name;
+  const displayName = handle ?? name;
+  const label = isClaimable ? (AUTO_GENERATED_NAME.test(name) ? "Sit!" : `Reserved for: ${displayName}`) : displayName;
   const body = (
     <div
       className={cn(
@@ -137,6 +140,7 @@ export function LiveTable({
       direction,
       playerId: "",
       name: "—",
+      handle: null,
       claimed: false,
     };
 
@@ -147,6 +151,7 @@ export function LiveTable({
     return (
       <SeatBar
         name={seat.name}
+        handle={seat.handle}
         isViewer={isViewer}
         isClaimable={isClaimable}
         onClaim={isClaimable ? claimAction.bind(null, room.tableId, direction) : undefined}

@@ -6,6 +6,7 @@ import {
   boards,
   movement,
   pairMembers,
+  pairs,
   players,
   sessionBoards,
   sessions,
@@ -21,6 +22,10 @@ export type SeatInfo = {
   direction: Direction;
   playerId: string;
   name: string;
+  // The player's chosen Player ID (players.handle) — shown in seat labels
+  // instead of `name` when set. Null for guest placeholders and accounts
+  // that haven't finished onboarding yet.
+  handle: string | null;
   // False once a real signed-in account has claimed this seat — until then
   // it's held by an auto-created guest placeholder and anyone can sit down.
   claimed: boolean;
@@ -56,7 +61,13 @@ export async function getTeamMatchRooms(sessionId: string) {
   const [allPairMembers, allTeamMembers] = await Promise.all([
     pairIds.length
       ? db
-          .select({ pairId: pairMembers.pairId, playerId: pairMembers.playerId, name: players.name, userId: players.userId })
+          .select({
+            pairId: pairMembers.pairId,
+            playerId: pairMembers.playerId,
+            name: players.name,
+            handle: players.handle,
+            userId: players.userId,
+          })
           .from(pairMembers)
           .innerJoin(players, eq(pairMembers.playerId, players.playerId))
           .where(inArray(pairMembers.pairId, pairIds))
@@ -77,6 +88,7 @@ export async function getTeamMatchRooms(sessionId: string) {
       direction: directions[i],
       playerId: m.playerId,
       name: m.name,
+      handle: m.handle,
       claimed: m.userId !== null,
     }));
 
@@ -89,6 +101,35 @@ export async function getTeamMatchRooms(sessionId: string) {
   }));
 
   return { session, rooms };
+}
+
+// Where (if anywhere) each given player currently holds a seat, across any
+// active (non-completed) session — used to offer a "kibitz" link next to an
+// online player's name. Since a player can only hold one seat at a time
+// (claimSeatForPlayer enforces this), each playerId maps to at most one
+// entry.
+export async function getActiveSeatForPlayers(
+  playerIds: string[]
+): Promise<Map<string, { sessionId: string; tableNumber: number }>> {
+  const result = new Map<string, { sessionId: string; tableNumber: number }>();
+  if (playerIds.length === 0) return result;
+
+  const seatRows = await db
+    .select({ playerId: pairMembers.playerId, pairId: pairMembers.pairId, sessionId: pairs.sessionId })
+    .from(pairMembers)
+    .innerJoin(pairs, eq(pairMembers.pairId, pairs.pairId))
+    .innerJoin(sessions, eq(pairs.sessionId, sessions.sessionId))
+    .where(and(inArray(pairMembers.playerId, playerIds), ne(sessions.status, "completed")));
+  if (seatRows.length === 0) return result;
+
+  const sessionIds = [...new Set(seatRows.map((r) => r.sessionId))];
+  const movementRows = await db.select().from(movement).where(inArray(movement.sessionId, sessionIds));
+
+  for (const row of seatRows) {
+    const m = movementRows.find((mv) => mv.nsPairId === row.pairId || mv.ewPairId === row.pairId);
+    if (m) result.set(row.playerId, { sessionId: row.sessionId, tableNumber: m.tableNumber });
+  }
+  return result;
 }
 
 // All team-match sessions this user directs, most recent first. The old
@@ -158,9 +199,13 @@ export async function getCurrentBoard(sessionId: string) {
 // slot for the viewer's own player. Any signed-in player may claim a seat
 // still held by an unclaimed guest placeholder (userId IS NULL) — reserved
 // seat names are a label for organizers, not a hard restriction. A seat
-// already claimed by another real account can't be taken. Because seating
-// lives on `pair_members` (roster-level) rather than a per-board seat
-// table, this is a single row update — no fan-out across every board.
+// already claimed by another real account can't be taken, and neither can
+// a second seat by the same player — a real person only sits in one chair
+// at a time, so anyone already holding a seat at an active (non-completed)
+// session anywhere in the app must give it up before taking another.
+// Because seating lives on `pair_members` (roster-level) rather than a
+// per-board seat table, this is a single row update — no fan-out across
+// every board.
 export async function claimSeatForPlayer(
   viewerPlayerId: string,
   movementId: string,
@@ -179,6 +224,16 @@ export async function claimSeatForPlayer(
   const occupant = await db.query.players.findFirst({ where: eq(players.playerId, occupantId) });
   if (!occupant || occupant.userId !== null) {
     return { error: "That seat is already taken." };
+  }
+
+  const existingSeats = await db
+    .select({ pairId: pairMembers.pairId })
+    .from(pairMembers)
+    .innerJoin(pairs, eq(pairMembers.pairId, pairs.pairId))
+    .innerJoin(sessions, eq(pairs.sessionId, sessions.sessionId))
+    .where(and(eq(pairMembers.playerId, viewerPlayerId), ne(sessions.status, "completed")));
+  if (existingSeats.length > 0) {
+    return { error: "You're already seated at another table — leave that seat before taking a new one." };
   }
 
   await db

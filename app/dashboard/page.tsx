@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { CreateTeamMatchDialog } from "@/components/create-team-match-dialog";
 import { OnlinePlayersList } from "@/components/online-players-list";
+import { getActiveSeatForPlayers } from "@/db/matches";
 import { getOnlinePlayers, getOrCreatePlayerForUser } from "@/db/players";
 
 const playMenuBeforeTeamMatches = [
@@ -21,10 +22,19 @@ export default async function DashboardPage() {
   const email = session.user.email;
   const me = await getOrCreatePlayerForUser(userId, email, email.split("@")[0]);
   const onlinePlayers = await getOnlinePlayers(me.playerId);
+  const activeSeats = await getActiveSeatForPlayers(onlinePlayers.map((p) => p.playerId));
+  const onlinePlayersWithKibitz = onlinePlayers.map((p) => {
+    const seat = activeSeats.get(p.playerId);
+    return {
+      playerId: p.playerId,
+      name: p.handle ?? p.name,
+      kibitzHref: seat ? `/dashboard/matches/${seat.sessionId}?room=${seat.tableNumber}` : undefined,
+    };
+  });
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 items-start gap-4 px-4 py-6">
-      <OnlinePlayersList players={onlinePlayers} />
+      <OnlinePlayersList players={onlinePlayersWithKibitz} />
       <div className="mb-6 flex-1 rounded-2xl bg-indigo-50/60 p-3">
         <div className="mb-3 rounded-xl bg-indigo-700 px-6 py-3 text-center text-lg font-semibold text-white shadow-sm">
           Play or Watch Bridge

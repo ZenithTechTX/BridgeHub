@@ -2,11 +2,23 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { and, eq, ne } from "drizzle-orm";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { resolveOrCreatePlayerByName } from "@/db/players";
+import { getOrCreatePlayerForUser, resolveOrCreatePlayerByName } from "@/db/players";
 import { boardResults, boards, matches, movement, pairMembers, pairs, sessionBoards, sessions, teamMembers, teams } from "@/db/schema";
 import { dealerForBoard, generateRandomDeal, parseHand, vulnerabilityForBoard } from "@/lib/deal";
+
+const SEAT_KEYS = [
+  "team1North",
+  "team1East",
+  "team1South",
+  "team1West",
+  "team2North",
+  "team2East",
+  "team2South",
+  "team2West",
+] as const;
 
 const createTeamMatchSchema = z.object({
   title: z.string().trim().min(2, "Title must be at least 2 characters"),
@@ -14,6 +26,7 @@ const createTeamMatchSchema = z.object({
   team1Name: z.string().trim().optional(),
   team2Name: z.string().trim().optional(),
   boardsCount: z.coerce.number().int().min(1, "At least 1 board").max(40, "40 boards max"),
+  mySeat: z.enum(SEAT_KEYS),
   team1North: z.string().trim().optional(),
   team1East: z.string().trim().optional(),
   team1South: z.string().trim().optional(),
@@ -30,7 +43,8 @@ export async function createTeamMatch(
 ) {
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) {
+  const email = session?.user?.email;
+  if (!userId || !email) {
     return { error: "You must be signed in." };
   }
 
@@ -42,15 +56,37 @@ export async function createTeamMatch(
   const team1Name = data.team1Name || "Team 1";
   const team2Name = data.team2Name || "Team 2";
 
+  // The director sits at their own chosen seat, UNLESS they already hold a
+  // seat at another active match — a player can only ever be in one seat at
+  // a time (same rule claimSeatForPlayer enforces), so directing a new
+  // match while already seated elsewhere leaves that chosen slot blank
+  // (an auto-generated placeholder, same as any other unclaimed seat)
+  // rather than double-seating them. Every other seat left blank gets an
+  // auto-generated placeholder guest (unclaimed — claimable by anyone
+  // later) regardless.
+  const me = await getOrCreatePlayerForUser(userId, email, email.split("@")[0]);
+  const existingSeats = await db
+    .select({ pairId: pairMembers.pairId })
+    .from(pairMembers)
+    .innerJoin(pairs, eq(pairMembers.pairId, pairs.pairId))
+    .innerJoin(sessions, eq(pairs.sessionId, sessions.sessionId))
+    .where(and(eq(pairMembers.playerId, me.playerId), ne(sessions.status, "completed")));
+  const canSeatMe = existingSeats.length === 0;
+
+  const seatPlayer = (key: (typeof SEAT_KEYS)[number], typedName: string | undefined, fallbackLabel: string) =>
+    data.mySeat === key && canSeatMe
+      ? Promise.resolve(me)
+      : resolveOrCreatePlayerByName(typedName || `${fallbackLabel} ${Date.now()}`);
+
   const [t1n, t1e, t1s, t1w, t2n, t2e, t2s, t2w] = await Promise.all([
-    resolveOrCreatePlayerByName(data.team1North || `Team1 North ${Date.now()}`),
-    resolveOrCreatePlayerByName(data.team1East || `Team1 East ${Date.now()}`),
-    resolveOrCreatePlayerByName(data.team1South || `Team1 South ${Date.now()}`),
-    resolveOrCreatePlayerByName(data.team1West || `Team1 West ${Date.now()}`),
-    resolveOrCreatePlayerByName(data.team2North || `Team2 North ${Date.now()}`),
-    resolveOrCreatePlayerByName(data.team2East || `Team2 East ${Date.now()}`),
-    resolveOrCreatePlayerByName(data.team2South || `Team2 South ${Date.now()}`),
-    resolveOrCreatePlayerByName(data.team2West || `Team2 West ${Date.now()}`),
+    seatPlayer("team1North", data.team1North, "Team1 North"),
+    seatPlayer("team1East", data.team1East, "Team1 East"),
+    seatPlayer("team1South", data.team1South, "Team1 South"),
+    seatPlayer("team1West", data.team1West, "Team1 West"),
+    seatPlayer("team2North", data.team2North, "Team2 North"),
+    seatPlayer("team2East", data.team2East, "Team2 East"),
+    seatPlayer("team2South", data.team2South, "Team2 South"),
+    seatPlayer("team2West", data.team2West, "Team2 West"),
   ]);
 
   const [newSession] = await db
@@ -175,5 +211,5 @@ export async function createTeamMatch(
     ]);
   }
 
-  redirect(`/dashboard/matches`);
+  redirect(`/dashboard/matches/${newSession.sessionId}`);
 }
