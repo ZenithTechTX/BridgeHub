@@ -3,7 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { CreateTeamMatchDialog } from "@/components/create-team-match-dialog";
-import { getOrCreatePlayerForUser } from "@/db/players";
+import { OnlinePlayersList } from "@/components/online-players-list";
+import { getOnlinePlayers, getOrCreatePlayerForUser } from "@/db/players";
 
 const playMenuBeforeTeamMatches = [
   { label: "Casual Game", icon: Armchair, href: "/coming-soon?feature=Casual%20Game" },
@@ -18,11 +19,13 @@ export default async function DashboardPage() {
   if (!session?.user?.id || !session.user.email) redirect("/signin");
   const userId = session.user.id;
   const email = session.user.email;
-  await getOrCreatePlayerForUser(userId, email, email.split("@")[0]);
+  const me = await getOrCreatePlayerForUser(userId, email, email.split("@")[0]);
+  const onlinePlayers = await getOnlinePlayers(me.playerId);
 
   return (
-    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-      <div className="mb-6 rounded-2xl bg-indigo-50/60 p-3">
+    <div className="mx-auto flex w-full max-w-5xl flex-1 items-start gap-4 px-4 py-6">
+      <OnlinePlayersList players={onlinePlayers} />
+      <div className="mb-6 flex-1 rounded-2xl bg-indigo-50/60 p-3">
         <div className="mb-3 rounded-xl bg-indigo-700 px-6 py-3 text-center text-lg font-semibold text-white shadow-sm">
           Play or Watch Bridge
         </div>

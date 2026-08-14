@@ -18,7 +18,18 @@ function CallLabel({ call }: { call: string }) {
   );
 }
 
-export function AuctionGrid({ dealer, calls }: { dealer: Direction; calls: Call[] }) {
+export function AuctionGrid({
+  dealer,
+  calls,
+  vulnerability,
+}: {
+  dealer: Direction;
+  calls: Call[];
+  // Column headers are colored by vulnerability (red = vulnerable, matching
+  // how a real duplicate-bridge client marks it), not by dealer — the
+  // dealer's column gets an underline instead so the two cues don't clash.
+  vulnerability?: string;
+}) {
   const offset = COLUMNS.indexOf(dealer);
   const rows: (Call | null)[][] = [];
 
@@ -31,6 +42,9 @@ export function AuctionGrid({ dealer, calls }: { dealer: Direction; calls: Call[
   });
   if (rows.length === 0) rows.push([null, null, null, null]);
 
+  const isVulnerable = (c: Direction) =>
+    (c === "N" || c === "S") ? vulnerability === "NS" || vulnerability === "Both" : vulnerability === "EW" || vulnerability === "Both";
+
   return (
     <table className="w-full border-collapse text-base">
       <thead>
@@ -40,7 +54,8 @@ export function AuctionGrid({ dealer, calls }: { dealer: Direction; calls: Call[
               key={c}
               className={cn(
                 "border px-2 py-1 font-semibold",
-                c === dealer ? "bg-slate-800 text-white" : "bg-muted text-muted-foreground"
+                isVulnerable(c) ? "bg-red-700 text-white" : "bg-white text-slate-900",
+                c === dealer && "underline decoration-2 underline-offset-4"
               )}
             >
               {c}

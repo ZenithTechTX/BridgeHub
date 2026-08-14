@@ -18,7 +18,6 @@ import {
   getAuctionCalls,
   getCurrentBoard,
   getRoomTableResult,
-  getTeamForPair,
   getTeamMatchRooms,
   type Direction,
   type TeamMatchRoom,
@@ -170,10 +169,20 @@ type RoomView = Awaited<ReturnType<typeof computeRoomView>>;
 // The read-only center-panel content for a room: auction in progress,
 // current trick, or the final contract/score — no acting-direction/legal
 // info, since neither a kibitzer nor "the room in general" can act.
-function RoomStatus({ view, dealer, whoseTurnLabel }: { view: RoomView; dealer: Direction; whoseTurnLabel: (d: Direction) => string }) {
+function RoomStatus({
+  view,
+  dealer,
+  vulnerability,
+  whoseTurnLabel,
+}: {
+  view: RoomView;
+  dealer: Direction;
+  vulnerability: string;
+  whoseTurnLabel: (d: Direction) => string;
+}) {
   const { contract, auctionOver, playComplete, tableResult } = view;
   if (!auctionOver) {
-    return <AuctionGrid dealer={dealer} calls={view.calls} />;
+    return <AuctionGrid dealer={dealer} calls={view.calls} vulnerability={vulnerability} />;
   }
   if (contract === "PASSED_OUT") {
     return <p className="mt-2 text-center text-sm font-semibold">Passed out</p>;
@@ -263,21 +272,16 @@ export default async function MatchResultsPage({
         ? myView.tableResult.impsNs
         : myView.tableResult.impsEw
       : null;
-  const myTeamId =
-    myView?.tableResult && mySeat
-      ? await getTeamForPair(mySeat.direction === "N" || mySeat.direction === "S" ? myView.tableResult.nsPairId : myView.tableResult.ewPairId)
-      : null;
-  const myImps = myTeamId ? await getTeamImpsTotal(sessionId, myTeamId) : undefined;
-
   const boundMakeCall = myView?.tableResult ? makeCall.bind(null, sessionId, myView.tableResult.resultId) : null;
   const boundPlayCard = myView?.tableResult ? playCard.bind(null, sessionId, myView.tableResult.resultId) : null;
   const isLastBoard = matchSession.status === "completed";
   const bothRoomsDone = roomViews.length === 2 && roomViews.every((v) => v.playComplete);
 
-  // A kibitzer has no "my team" for the Score box's single-number view —
-  // show both teams' running totals instead.
+  // The sidebar score box always shows both teams' running totals (not
+  // just "my" net IMPs) regardless of seated/kibitzer status — matches how
+  // a real duplicate-bridge client displays it.
   let standing: { team1Name: string; team1Imps: number; team2Name: string; team2Imps: number } | undefined;
-  if (!mySeat) {
+  {
     const match = await db.query.matches.findFirst({ where: eq(matches.sessionId, sessionId) });
     if (match) {
       const [team1, team2, team1Imps, team2Imps] = await Promise.all([
@@ -320,14 +324,14 @@ export default async function MatchResultsPage({
       <AutoRefresh intervalMs={700} />
       <MatchPageHeader gameName={matchSession.name} recordHref={`/dashboard/matches/${sessionId}/record`} />
 
-      <div className="mx-auto w-full max-w-[2500px] flex-1 px-4 py-6">
+      <div className="mx-auto w-full max-w-[1900px] flex-1 px-4 py-6">
         {claimError && <p className="mb-3 text-sm text-destructive">{decodeURIComponent(claimError)}</p>}
         {callError && <p className="mb-3 text-sm text-destructive">{decodeURIComponent(callError)}</p>}
         {playError && <p className="mb-3 text-sm text-destructive">{decodeURIComponent(playError)}</p>}
 
         {mySeat && myView && currentBoard ? (
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
-            <MatchSidebar boardNumber={currentBoard.boardNumber} boardsPerRound={matchSession.numBoards ?? 0} rooms={rooms} myImps={myImps} kibitzers={kibitzers} />
+            <MatchSidebar boardNumber={currentBoard.boardNumber} boardsPerRound={matchSession.numBoards ?? 0} dealer={currentBoard.dealer as Direction} rooms={rooms} standing={standing} kibitzers={kibitzers} />
             <div className="flex flex-1 flex-col gap-3 lg:flex-row">
               <div className="flex flex-1 flex-col gap-4">
                 <LiveTable
@@ -362,7 +366,7 @@ export default async function MatchResultsPage({
                 >
                   {!myView.auctionOver ? (
                     <>
-                      <AuctionGrid dealer={currentBoard.dealer as Direction} calls={myView.calls} />
+                      <AuctionGrid dealer={currentBoard.dealer as Direction} calls={myView.calls} vulnerability={currentBoard.vulnerability} />
 
                       {myTurn && legal ? (
                         <div className="mt-3 flex flex-col gap-2">
@@ -475,7 +479,7 @@ export default async function MatchResultsPage({
           </div>
         ) : currentBoard && kibitzerView ? (
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
-            <MatchSidebar boardNumber={currentBoard.boardNumber} boardsPerRound={matchSession.numBoards ?? 0} rooms={rooms} standing={standing} kibitzers={kibitzers} />
+            <MatchSidebar boardNumber={currentBoard.boardNumber} boardsPerRound={matchSession.numBoards ?? 0} dealer={currentBoard.dealer as Direction} rooms={rooms} standing={standing} kibitzers={kibitzers} />
             <div className="flex flex-1 flex-col gap-3 lg:flex-row">
               <div className="flex flex-1 flex-col gap-2">
                 <div className="flex items-center gap-3 text-xs">
@@ -506,7 +510,12 @@ export default async function MatchResultsPage({
                   cardsRemaining={kibitzerView.cardsRemaining}
                   claimAction={boundClaimSeat}
                 >
-                  <RoomStatus view={kibitzerView} dealer={currentBoard.dealer as Direction} whoseTurnLabel={(d) => `Waiting for ${d} to play.`} />
+                  <RoomStatus
+                    view={kibitzerView}
+                    dealer={currentBoard.dealer as Direction}
+                    vulnerability={currentBoard.vulnerability}
+                    whoseTurnLabel={(d) => `Waiting for ${d} to play.`}
+                  />
                 </LiveTable>
 
                 {bothRoomsDone && roomViews[0] && roomViews[1] && <RoomComparisonBanner roomA={roomViews[0]} roomB={roomViews[1]} />}

@@ -8,6 +8,11 @@ const SEAT_POSITION: Record<Direction, string> = {
   W: "left-1 top-1/2 -translate-y-1/2",
 };
 
+// Same heuristic as live-table.tsx's SeatBar: a claimable seat whose name
+// doesn't match the auto-generated placeholder pattern was explicitly
+// typed in by the director, so it's reserved for that name specifically.
+const AUTO_GENERATED_NAME = /^Team[12] (North|East|South|West) \d+$/;
+
 type ClaimAction = (tableId: string, direction: Direction, formData: FormData) => Promise<void>;
 
 function Seat({
@@ -34,7 +39,9 @@ function Seat({
       )}
     >
       <span className="text-[10px] font-bold tracking-wide text-amber-950/70">{direction}</span>
-      <span className="max-w-full truncate text-xs font-semibold text-amber-950">{name}</span>
+      <span className="max-w-full truncate text-xs font-semibold text-amber-950">
+        {isClaimable ? (AUTO_GENERATED_NAME.test(name) ? "Open seat" : `Reserved: ${name}`) : name}
+      </span>
       <span className="max-w-full truncate text-[10px] text-amber-950/60">
         {isViewer ? "You" : isClaimable ? "Take seat" : team}
       </span>

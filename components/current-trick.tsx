@@ -38,7 +38,7 @@ export function CurrentTrick({
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="text-sm font-semibold text-muted-foreground">Trick {trickNumber}</div>
+      <div className="text-base font-semibold text-muted-foreground">Trick {trickNumber}</div>
       <div className="relative h-[280px] w-[280px]">
         {spot(top, "top-0 left-1/2 -translate-x-1/2", { x: 0, y: -60 })}
         {spot(bottom, "bottom-0 left-1/2 -translate-x-1/2", { x: 0, y: 60 })}

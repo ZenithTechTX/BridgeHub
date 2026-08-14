@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 const tabs = [
   { href: "/dashboard", label: "Play Bridge" },
+  { href: "/dashboard/tables", label: "All Tables" },
   { href: "/dashboard/vugraph", label: "Vugraph" },
   { href: "/dashboard/record", label: "My Record" },
   { href: "/dashboard/account", label: "My Account" },
